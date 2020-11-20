@@ -6,29 +6,37 @@
  */
 
 #include <math.h>
+#include <exception>
 #include "Evaluator.h"
 
-Evaluator::Evaluator() {
+using std::sqrt;
 
+Evaluator::Evaluator() {
+	init();
 }
 
 Evaluator::~Evaluator() {
 }
 
+double Evaluator::result() {
+	return _valueStack.top();
+}
+std::wstring Evaluator::rpn() {
+	return _output;
+}
+
 void Evaluator::init() {
-	_operators[L"+"] = new MathOperator<FunctionPtr>(2, left, &Evaluator::add);
-	_operators[L"-"] = new MathOperator<FunctionPtr>(2, left, &Evaluator::sub);
-	_operators[L"*"] = new MathOperator<FunctionPtr>(2, left, &Evaluator::mul);
-	_operators[L"/"] = new MathOperator<FunctionPtr>(2, left, &Evaluator::div);
-	_operators[L"^"] = new MathOperator<FunctionPtr>(2, left, &Evaluator::pwr);
-	_operators[L"min"] = new MathOperator<FunctionPtr>(2, left,
-			&Evaluator::min);
-	_operators[L"max"] = new MathOperator<FunctionPtr>(2, left,
-			&Evaluator::max);
-	_operators[L"sin"] = new MathOperator<FunctionPtr>(2, left,
-			&Evaluator::sin);
-	_operators[L"cos"] = new MathOperator<FunctionPtr>(2, left,
-			&Evaluator::cos);
+	_operators[L"+"] = MathOperator<FunctionPtr>(2, left, &Evaluator::add);
+	_operators[L"-"] = MathOperator<FunctionPtr>(2, left, &Evaluator::sub);
+	_operators[L"*"] = MathOperator<FunctionPtr>(3, left, &Evaluator::mul);
+	_operators[L"/"] = MathOperator<FunctionPtr>(3, left, &Evaluator::div);
+	_operators[L"^"] = MathOperator<FunctionPtr>(4, left, &Evaluator::pwr);
+	_operators[L"sqrt"] = MathOperator<FunctionPtr>(4, left, &Evaluator::sqrt);
+	_operators[L"min"] = MathOperator<FunctionPtr>(5, left, &Evaluator::min);
+	_operators[L"max"] = MathOperator<FunctionPtr>(5, left, &Evaluator::max);
+	_operators[L"sin"] = MathOperator<FunctionPtr>(5, left, &Evaluator::sin);
+	_operators[L"cos"] = MathOperator<FunctionPtr>(5, left, &Evaluator::cos);
+	_operators[L"pi"] = MathOperator<FunctionPtr>(5, left, &Evaluator::pi);
 }
 void Evaluator::pushToOutput(std::wstring token) {
 	_output += token + L" ";
@@ -38,16 +46,16 @@ void Evaluator::processFunction(std::wstring token) {
 	_operatorStack.push(token);
 }
 
-void Evaluator::procesLeftParenthesis(std::wstring token) {
-	_operatorStack.push(token);
+void Evaluator::procesLeftParenthesis() {
+	_operatorStack.push(L"(");
 }
 void Evaluator::procesRightParenthesis() {
 	while (_operatorStack.top() != L"(") {
 		std::wstring token = _operatorStack.pop();
 		pushToOutput(token);
-		if (_operatorStack.top() == L"(") {
-			_operatorStack.drop();
-		}
+	}
+	if (_operatorStack.top() == L"(") {
+		_operatorStack.drop();
 	}
 }
 
@@ -92,20 +100,22 @@ bool Evaluator::operatorStackIsNotEmpty() {
 }
 
 bool Evaluator::operatorOnStackHasGreaterPrecedence(std::wstring thisOperator) {
-	std::wstring operatorOnStack = _operatorStack.top();
-	MathOperatorPtr operatorOnStackPtr = _operators[operatorOnStack];
-	MathOperatorPtr thisOperatorPtr = _operators[thisOperator];
-	return (*operatorOnStackPtr) > (*thisOperatorPtr);
+	std::wstring opOnStack = _operatorStack.top();
+	MathOperatorFn mathOperatorOnStack = _operators[opOnStack];
+	MathOperatorFn thisMathOperator = _operators[thisOperator];
+	bool result = mathOperatorOnStack > thisMathOperator;
+	return result;
+//	return (*operatorOnStackPtr) > (*thisOperatorPtr);
 }
 
 bool Evaluator::operatorOnStackHasEqualPrecedenceAndLeftAssociativity(
 		std::wstring thisOperator) {
-	std::wstring operatorOnStack = _operatorStack.top();
-	MathOperatorPtr operatorOnStackPtr = _operators[operatorOnStack];
-	MathOperatorPtr thisOperatorPtr = _operators[thisOperator];
-	Associativity operatorAssociativity = thisOperatorPtr->associativity();
-	return (*operatorOnStackPtr) == (*thisOperatorPtr)
-			&& (operatorAssociativity == left);
+	std::wstring opOnStack = _operatorStack.top();
+	MathOperatorFn mathOperatorOnStack = _operators[opOnStack];
+	MathOperatorFn thisMathOperator = _operators[thisOperator];
+	Associativity thisOperatorAssociativity = thisMathOperator.associativity();
+	return mathOperatorOnStack == thisMathOperator
+			&& (thisOperatorAssociativity == left);
 }
 bool Evaluator::operatorOnStackIsNotLeftParentheses() {
 	std::wstring operatorOnStack = _operatorStack.top();
@@ -133,44 +143,70 @@ void Evaluator::finish() {
 	}
 }
 void Evaluator::calc(std::wstring op) {
-	MathOperatorPtr operatorPtr = _operators[op];
-	FunctionPtr function = operatorPtr->function();
+	MathOperatorFn mathOperator = _operators[op];
+	FunctionPtr function = mathOperator.function();
 	(this->*function)();
 }
 
 void Evaluator::parse(std::wstring expression) {
-	std::wstring token = L"";
+	_operatorStack.clear();
+	_valueStack.clear();
+	_output = L"";
 	bool tokenIsNumber = false;
-	for (uint i = 0; i < expression.length(); i++) {
-		wchar_t ch = expression[i];
-		if (isDigit(ch)) {
-			tokenIsNumber = true;
-			token += ch;
-		} else if (ch == ',') {
-			if (token != L"") {
-				if (tokenIsNumber) {
-					processNumber(token);
-				} else {
-					processFunction(token);
+	uint i ;
+	try {
+		std::wstring token = L"";
+		for ( i = 0; i < expression.length(); i++) {
+			wchar_t ch = expression[i];
+			if (isDigit(ch)) {
+				tokenIsNumber = true;
+				token += ch;
+			} else if (ch == ',') {
+				if (token != L"") {
+					if (tokenIsNumber) {
+						processNumber(token);
+						tokenIsNumber = false;
+					} else {
+						processFunction(token);
+					}
+					token = L"";
 				}
+
+			} else if (ch == '(') {
+				if (token != L"") {
+					if (tokenIsNumber) {
+						processNumber(token);
+						tokenIsNumber = false;
+					} else {
+						processFunction(token);
+					}
+					token = L"";
+				}
+				procesLeftParenthesis();
+
+			} else if (ch == ')') {
+				procesRightParenthesis();
+			} else if (isOperator(ch)) {
+				if (token != L"" && tokenIsNumber) {
+					processNumber(token);
+					tokenIsNumber = false;
+					token = L"";
+				}
+				std::wstring op(1, ch);
+				processOperator(op);
+			} else {
+				token += ch;
 			}
+		} // end for
+		finish();
+	} catch (...) {
+		std::wstring exceptionMessage = L"Error parsing expression "
+				+ expression + L" at position " + std::to_wstring(i);
+		std::string message(exceptionMessage.begin(), exceptionMessage.end());
+		throw std::runtime_error(message);
+	} // end try
 
-		} else if (ch == '(') {
-			procesLeftParenthesis(token);
-
-		} else if (ch == ')') {
-			procesRightParenthesis();
-		} else if (isOperator(ch)) {
-			if (token != L"" && tokenIsNumber) {
-				processNumber(token);
-				token = L"";
-			}
-		} else {
-			token += ch;
-		}
-
-	}
-}
+} // end function
 
 void Evaluator::add() {
 	double val1 = _valueStack.pop();
@@ -204,6 +240,12 @@ void Evaluator::pwr() {
 	double val1 = _valueStack.pop();
 	double val2 = _valueStack.pop();
 	double result = pow(val2, val1);
+	_valueStack.push(result);
+}
+
+void Evaluator::sqrt() {
+	double val1 = _valueStack.pop();
+	double result = std::sqrt(val1);
 	_valueStack.push(result);
 }
 

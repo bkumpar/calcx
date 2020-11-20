@@ -21,7 +21,6 @@ public:
 	MathOperator(int precedence, Associativity associativity, T function) :
 			_precedence(precedence), _associativity(associativity), _function(
 					function) {
-
 	}
 
 	bool operator>(MathOperator rightOperator) {
