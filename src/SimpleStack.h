@@ -57,8 +57,9 @@ public:
 	T pop()
 	{
 		T &topElement = _container.back();
+		T copyOfTopElement = topElement;
 		_container.pop_back();
-		return topElement;
+		return copyOfTopElement;
 	}
 
 	T top()

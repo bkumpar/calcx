@@ -43,26 +43,41 @@ void Evaluator::pushToOutput(std::wstring token) {
 }
 
 void Evaluator::processFunction(std::wstring token) {
-	_operatorStack.push(token);
+	if (token != L"") {
+		_operatorStack.push(token);
+	}
 }
 
 void Evaluator::procesLeftParenthesis() {
 	_operatorStack.push(L"(");
 }
 void Evaluator::procesRightParenthesis() {
-	while (_operatorStack.top() != L"(") {
+	while (_operatorStack.top() != L"(")
+	{
 		std::wstring token = _operatorStack.pop();
 		pushToOutput(token);
+		calc(token);
 	}
+
 	if (_operatorStack.top() == L"(") {
 		_operatorStack.drop();
 	}
 }
 
 void Evaluator::processNumber(std::wstring token) {
-	double number = stod(token);
-	_valueStack.push(number);
-	pushToOutput(token);
+	if (token != L"") {
+		double number = stod(token);
+		_valueStack.push(number);
+		pushToOutput(token);
+	}
+}
+
+void Evaluator::processToken(std::wstring token, bool isNumber) {
+	if (isNumber) {
+		processNumber(token);
+	} else {
+		processFunction(token);
+	}
 }
 
 bool Evaluator::isDigit(wchar_t ch) {
@@ -105,7 +120,6 @@ bool Evaluator::operatorOnStackHasGreaterPrecedence(std::wstring thisOperator) {
 	MathOperatorFn thisMathOperator = _operators[thisOperator];
 	bool result = mathOperatorOnStack > thisMathOperator;
 	return result;
-//	return (*operatorOnStackPtr) > (*thisOperatorPtr);
 }
 
 bool Evaluator::operatorOnStackHasEqualPrecedenceAndLeftAssociativity(
@@ -153,51 +167,57 @@ void Evaluator::parse(std::wstring expression) {
 	_valueStack.clear();
 	_output = L"";
 	bool tokenIsNumber = false;
-	uint i ;
+	uint i;
 	try {
 		std::wstring token = L"";
-		for ( i = 0; i < expression.length(); i++) {
+		for (i = 0; i < expression.length(); i++) {
 			wchar_t ch = expression[i];
 			if (isDigit(ch)) {
 				tokenIsNumber = true;
 				token += ch;
 			} else if (ch == ',') {
-				if (token != L"") {
-					if (tokenIsNumber) {
-						processNumber(token);
-						tokenIsNumber = false;
-					} else {
-						processFunction(token);
-					}
-					token = L"";
-				}
-
-			} else if (ch == '(') {
-				if (token != L"") {
-					if (tokenIsNumber) {
-						processNumber(token);
-						tokenIsNumber = false;
-					} else {
-						processFunction(token);
-					}
-					token = L"";
-				}
-				procesLeftParenthesis();
-
-			} else if (ch == ')') {
-				procesRightParenthesis();
-			} else if (isOperator(ch)) {
-				if (token != L"" && tokenIsNumber) {
-					processNumber(token);
+				if (token != L"") { //
+					processToken(token, tokenIsNumber);
 					tokenIsNumber = false;
 					token = L"";
 				}
+			} else if (ch == '(') {
+				if (token != L"") {
+					processToken(token, tokenIsNumber);
+					tokenIsNumber = false;
+					token = L"";
+				}
+				procesLeftParenthesis();
+			} else if (ch == ')') {
+				processToken(token, tokenIsNumber);
+				tokenIsNumber = false;
+				token = L"";
+				procesRightParenthesis();
+			} else if (isOperator(ch)) {
+				processToken(token, tokenIsNumber);
+				tokenIsNumber = false;
+				token = L"";
 				std::wstring op(1, ch);
 				processOperator(op);
+			} else if (ch == '=') {
+				break;
 			} else {
 				token += ch;
 			}
 		} // end for
+
+		// process last token
+		processToken(token, tokenIsNumber);
+		tokenIsNumber = false;
+
+//		if (tokenIsNumber) {
+//			processNumber(token);
+//			tokenIsNumber = false;
+//		} else {
+//			processFunction(token);
+//		}
+		token = L"";
+
 		finish();
 	} catch (...) {
 		std::wstring exceptionMessage = L"Error parsing expression "

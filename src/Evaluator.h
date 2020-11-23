@@ -42,6 +42,7 @@ private:
 	void procesRightParenthesis();
 	void processNumber(std::wstring number);
 	void processOperator(std::wstring op);
+	void processToken(std::wstring token, bool isNumber);
 
 	bool operatorStackIsNotEmpty();
 	bool operatorOnStackHasGreaterPrecedence(std::wstring thisOperator);
