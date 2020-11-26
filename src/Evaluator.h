@@ -28,11 +28,15 @@ public:
 	void parse(std::wstring expression);
 	double result();
 	std::wstring rpn();
+	double memory[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+	void saveMemory();
+	void loadMemory();
 private:
 	SimpleStack<double> _valueStack;
 	SimpleStack<std::wstring> _operatorStack;
 	OperatorsMap _operators;
 	std::wstring _output;
+	std::string _memoryFileName;
 	bool isDigit(wchar_t ch);
 	bool isOperator(wchar_t ch);
 
@@ -57,11 +61,24 @@ private:
 	void div();
 	void pwr();
 	void sqrt();
+	void root();
 	void min();
 	void max();
+	// trigonomerty
 	void sin();
 	void cos();
+	void tan();
+	void asin();
+	void acos();
+	void atan();
+	// logaritmic
+	void exp();
+	void ln();
+	void log();
 	void pi();
+	// memory operations
+	void sto();
+	void rcl();
 
 }
 ;

@@ -7,15 +7,34 @@
 
 #include <math.h>
 #include <exception>
+#include <iostream>
+#include <fstream>
 #include "Evaluator.h"
 
 using std::sqrt;
 
 Evaluator::Evaluator() {
 	init();
+	_memoryFileName = "./.calc.mem";
+	loadMemory();
 }
 
 Evaluator::~Evaluator() {
+	saveMemory();
+}
+
+void Evaluator::saveMemory()
+{
+	  std::ofstream mem(_memoryFileName.c_str(), std::ios::out | std::ios::binary);
+	  mem.write((char*)&memory, sizeof(memory));
+	  mem.close();
+}
+
+void Evaluator::loadMemory()
+{
+	  std::ifstream mem(_memoryFileName.c_str(), std::ios::in | std::ios::binary);
+	  mem.read((char*)&memory, sizeof(memory));
+	  mem.close();
 }
 
 double Evaluator::result() {
@@ -30,13 +49,29 @@ void Evaluator::init() {
 	_operators[L"-"] = MathOperator<FunctionPtr>(2, left, &Evaluator::sub);
 	_operators[L"*"] = MathOperator<FunctionPtr>(3, left, &Evaluator::mul);
 	_operators[L"/"] = MathOperator<FunctionPtr>(3, left, &Evaluator::div);
+
 	_operators[L"^"] = MathOperator<FunctionPtr>(4, left, &Evaluator::pwr);
 	_operators[L"sqrt"] = MathOperator<FunctionPtr>(4, left, &Evaluator::sqrt);
+	_operators[L"root"] = MathOperator<FunctionPtr>(4, left, &Evaluator::root);
+	_operators[L"sqrt"] = MathOperator<FunctionPtr>(4, left, &Evaluator::sqrt);
+
 	_operators[L"min"] = MathOperator<FunctionPtr>(5, left, &Evaluator::min);
 	_operators[L"max"] = MathOperator<FunctionPtr>(5, left, &Evaluator::max);
+
 	_operators[L"sin"] = MathOperator<FunctionPtr>(5, left, &Evaluator::sin);
 	_operators[L"cos"] = MathOperator<FunctionPtr>(5, left, &Evaluator::cos);
+	_operators[L"tan"] = MathOperator<FunctionPtr>(5, left, &Evaluator::tan);
+	_operators[L"asin"] = MathOperator<FunctionPtr>(5, left, &Evaluator::asin);
+	_operators[L"acos"] = MathOperator<FunctionPtr>(5, left, &Evaluator::acos);
+	_operators[L"atan"] = MathOperator<FunctionPtr>(5, left, &Evaluator::atan);
 	_operators[L"pi"] = MathOperator<FunctionPtr>(5, left, &Evaluator::pi);
+
+	_operators[L"exp"] = MathOperator<FunctionPtr>(5, left, &Evaluator::exp);
+	_operators[L"ln"] = MathOperator<FunctionPtr>(5, left, &Evaluator::ln);
+	_operators[L"log"] = MathOperator<FunctionPtr>(5, left, &Evaluator::log);
+
+	_operators[L"sto"] = MathOperator<FunctionPtr>(5, left, &Evaluator::sto);
+	_operators[L"rcl"] = MathOperator<FunctionPtr>(5, left, &Evaluator::rcl);
 }
 void Evaluator::pushToOutput(std::wstring token) {
 	_output += token + L" ";
@@ -92,6 +127,7 @@ bool Evaluator::isDigit(wchar_t ch) {
 	case '7':
 	case '8':
 	case '9':
+	case '.':
 		return true;
 	default:
 		return false;
@@ -175,8 +211,8 @@ void Evaluator::parse(std::wstring expression) {
 			if (isDigit(ch)) {
 				tokenIsNumber = true;
 				token += ch;
-			} else if (ch == ',') {
-				if (token != L"") { //
+			} else if (ch == ',') { // BUG: do not evaluate whole expression before comma!
+				if (token != L"") {
 					processToken(token, tokenIsNumber);
 					tokenIsNumber = false;
 					token = L"";
@@ -209,13 +245,6 @@ void Evaluator::parse(std::wstring expression) {
 		// process last token
 		processToken(token, tokenIsNumber);
 		tokenIsNumber = false;
-
-//		if (tokenIsNumber) {
-//			processNumber(token);
-//			tokenIsNumber = false;
-//		} else {
-//			processFunction(token);
-//		}
 		token = L"";
 
 		finish();
@@ -269,6 +298,13 @@ void Evaluator::sqrt() {
 	_valueStack.push(result);
 }
 
+void Evaluator::root() {
+	double val1 = _valueStack.pop();
+	double val2 = _valueStack.pop();
+	double result = std:: pow(val1, 1.0/val2);
+	_valueStack.push(result);
+}
+
 void Evaluator::max() {
 	double val1 = _valueStack.pop();
 	double val2 = _valueStack.pop();
@@ -289,12 +325,74 @@ void Evaluator::pi() {
 
 void Evaluator::sin() {
 	double val1 = _valueStack.pop();
-	double result = (double) sinl(val1);
+	double result = (double) sinh(val1);
 	_valueStack.push(result);
 }
 
 void Evaluator::cos() {
 	double val1 = _valueStack.pop();
-	double result = (double) cosl(val1);
+	double result = (double) cosh(val1);
 	_valueStack.push(result);
+}
+
+void Evaluator::tan() {
+	double val1 = _valueStack.pop();
+	double result = (double) tanh(val1);
+	_valueStack.push(result);
+}
+
+void Evaluator::asin() {
+	double val1 = _valueStack.pop();
+	double result = (double) asinh(val1);
+	_valueStack.push(result);
+}
+
+void Evaluator::acos() {
+	double val1 = _valueStack.pop();
+	double result = (double) acosh(val1);
+	_valueStack.push(result);
+}
+
+void Evaluator::atan() {
+	double val1 = _valueStack.pop();
+	double result = (double) atanh(val1);
+	_valueStack.push(result);
+}
+
+// exponential and logarithm
+
+void Evaluator::exp() {
+	double val1 = _valueStack.pop();
+	double result = (double) exp2(val1);
+	_valueStack.push(result);
+}
+
+void Evaluator::ln() {
+	double val1 = _valueStack.pop();
+	double result = (double) log2(val1);
+	_valueStack.push(result);
+}
+
+void Evaluator::log() {
+	double val1 = _valueStack.pop();
+	double result = (double) log10(val1);
+	_valueStack.push(result);
+}
+
+
+void Evaluator::sto()
+{
+	double val1 = _valueStack.pop();
+	double val2 = _valueStack.pop();
+	int index = (int) val1;
+	memory[index] = val2;
+	_valueStack.push(val2);
+}
+
+void Evaluator::rcl()
+{
+	double val1 = _valueStack.pop();
+	int index = (int) val1;
+	double val2 = memory[index];
+	_valueStack.push(val2);
 }
