@@ -62,7 +62,6 @@ int main(int argc, char *argv[]) {
 		}
 	} while (nextOption != -1);
 
-// done with options. optind points to first nonoption argument (deb archive)
 	std::wstring expression;
 	while (optind < argc) { // optind is GLOBAL (extern)
 		std::string str(argv[optind]);
