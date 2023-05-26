@@ -42,8 +42,8 @@ int main(int argc, char *argv[]) {
 	const struct option longOptions[] = { { "help", 0, NULL, 'h' }, { "test", 0,
 			NULL, 't' }, { "rpn", 0, NULL, 'r' }, { NULL, 0, NULL, 0 } };
 
-// show help if no arguments
-	if (argc == 1) {
+
+	if (argc == 1) { // show help if no arguments
 		printHelp();
 	}
 	bool showRpn = false;
